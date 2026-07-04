@@ -2,7 +2,7 @@ project_name: mini_gpt_edu
 stage: stage2_embedding_lm
 
 data:
-  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  raw_text_path: data/full_corpus.txt
   train_ratio: 0.9
 
 model:

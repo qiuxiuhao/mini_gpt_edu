@@ -17,7 +17,7 @@
 
 ## 当前阶段
 
-Stage 1：字符级 Bigram 语言模型。
+Stage 2：Embedding 语言模型。
 
 ## 环境配置
 
@@ -78,3 +78,96 @@ python -m mini_gpt.generate_bigram \
   --ckpt checkpoints/bigram_best.pt \
   --prompt "人工智能"
 ```
+
+## Stage 2：Embedding 语言模型
+
+Stage 2 在 Stage 1 Bigram 的基础上，引入更接近 GPT 的输入结构：
+
+```text
+token id
+  ↓
+token embedding
+  ↓
+position embedding
+  ↓
+lm_head
+  ↓
+next-token logits
+```
+
+## Stage 2 目标
+
+本阶段继续使用字符级 tokenizer 和 next-token prediction，但模型不再让 token id 直接查出 logits，而是先学习 token embedding 和 position embedding。
+
+模型显式包含：
+
+1. `token_embedding_table = nn.Embedding(vocab_size, n_embd)`
+2. `position_embedding_table = nn.Embedding(block_size, n_embd)`
+3. `lm_head = nn.Linear(n_embd, vocab_size)`
+
+本阶段不实现 Self-Attention、Transformer Block、Multi-Head Attention、SFT、LoRA 或 RAG。
+
+## Stage 2 和 Stage 1 的区别
+
+Stage 1 Bigram：
+
+```text
+token id -> logits
+```
+
+Stage 2 Embedding LM：
+
+```text
+token id -> token embedding
+position id -> position embedding
+token embedding + position embedding -> lm_head -> logits
+```
+
+Stage 2 的重点是理解 token id 不是向量，embedding table 才是可学习的向量查表矩阵。
+
+## Stage 2 训练命令
+
+MacBook Air M5 24GB 小规模训练：
+
+```bash
+python -m mini_gpt.train_embedding_lm --config configs/embedding_lm_mac.yaml
+```
+
+Mac 快速测试：
+
+```bash
+python -m mini_gpt.train_embedding_lm \
+  --config configs/embedding_lm_mac.yaml \
+  --max-iters 20
+```
+
+RTX 4090 24GB 较大配置训练：
+
+```bash
+python -m mini_gpt.train_embedding_lm --config configs/embedding_lm_4090.yaml
+```
+
+训练完成后会保存：
+
+```text
+checkpoints/embedding_lm_best.pt
+checkpoints/tokenizer.json
+```
+
+## Stage 2 生成命令
+
+```bash
+python -m mini_gpt.generate_embedding_lm \
+  --ckpt checkpoints/embedding_lm_best.pt \
+  --prompt "人工智能"
+```
+
+## Stage 2 学习重点
+
+1. token embedding：把 token id 查成可学习向量。
+2. position embedding：给每个位置一个可学习向量。
+3. logits：每个位置都输出对整个 vocab 的预测分数。
+4. cross entropy：比较 logits 和下一个 token id。
+5. device auto：优先 CUDA，其次 MPS，最后 CPU。
+
+下一阶段将进入 Stage 3：Causal Self-Attention，把 attention 接在 embedding 之后。

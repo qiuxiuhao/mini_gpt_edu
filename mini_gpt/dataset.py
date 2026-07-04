@@ -1,4 +1,4 @@
-"""Dataset helpers for character-level next-token prediction."""
+"""Dataset helpers for token-level next-token prediction."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def get_batch(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Sample a batch for next-token prediction.
 
-    x contains the current characters. y contains the next characters.
+    x contains the current token ids. y contains the next token ids.
 
     x shape: [batch_size, block_size]
     y shape: [batch_size, block_size]
@@ -56,7 +56,7 @@ def get_batch(
     x = torch.stack([data[i : i + block_size] for i in start_positions])
 
     # y shape: [batch_size, block_size]
-    # y is x shifted one character to the right.
+    # y is x shifted one token to the right.
     y = torch.stack([data[i + 1 : i + block_size + 1] for i in start_positions])
 
     return x.to(device), y.to(device)

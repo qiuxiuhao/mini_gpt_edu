@@ -1,0 +1,24 @@
+project_name: mini_gpt_edu
+stage: stage2_embedding_lm
+
+data:
+  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+
+train:
+  batch_size: 128
+  max_iters: 10000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: embedding_lm_4090_best.pt
+  tokenizer_name: tokenizer_4090.json

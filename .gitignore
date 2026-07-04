@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+.env
+
+# macOS
+.DS_Store
+
+# Data
+data/*.bin
+data/*.npy
+data/*.npz
+data/large/
+datasets/
+
+# Checkpoints
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Logs and outputs
+logs/
+outputs/
+runs/
+wandb/
+
+# Cache
+.cache/
+*.log

@@ -11,8 +11,9 @@
 - Stage 0：项目初始化，已完成。
 - Stage 1：字符级 Bigram 语言模型，已完成。
 - Stage 2：Embedding 语言模型 + Mac/4090 双设备配置，已完成。
-- Stage 3：Single-Head Causal Self-Attention，当前进行中。
-- Stage 4：Multi-Head Attention，下一阶段实现。
+- Stage 3：Single-Head Causal Self-Attention，已完成。
+- Stage 4：Multi-Head Causal Self-Attention，当前进行中。
+- Stage 5：Transformer Block，下一阶段实现。
 
 ## Stage 0：项目初始化
 
@@ -97,7 +98,7 @@ python -m mini_gpt.generate_embedding_lm --ckpt checkpoints/embedding_lm_best.pt
 
 ## Stage 3：Single-Head Causal Self-Attention
 
-状态：当前进行中。
+状态：已完成。
 
 目标：
 
@@ -132,15 +133,51 @@ python -m mini_gpt.train_attention_lm --config configs/single_head_attention_mac
 python -m mini_gpt.generate_attention_lm --ckpt checkpoints/single_head_attention_best.pt --prompt "人工智能"
 ```
 
-## Stage 4：Multi-Head Attention
+## Stage 4：Multi-Head Causal Self-Attention
+
+状态：当前进行中。
+
+目标：
+
+- 将 Stage 3 的 single-head attention 扩展为 multi-head attention
+- 理解多个 causal attention head 并行学习不同关系
+- 理解每个 head 都有自己的 Q、K、V
+- 理解每个 head 都使用 causal mask，不能看未来 token
+- 理解多个 head 的输出 concat
+- 理解 output projection 如何映射回 n_embd
+- 继续做字符级 next-token prediction
+- 支持 Mac MPS 小规模调试
+- 支持 RTX 4090 24GB 较大配置训练
+
+本阶段只实现 Multi-Head Causal Self-Attention。
+
+本阶段不实现：
+
+- Transformer Block
+- LayerNorm
+- FeedForward
+- Residual Connection
+- SFT
+- LoRA
+- RAG
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+计划验收命令：
+
+```bash
+python -m mini_gpt.train_multi_head_lm --config configs/multi_head_lm_mac.yaml --max-iters 20
+python -m mini_gpt.generate_multi_head_lm --ckpt checkpoints/multi_head_lm_best.pt --prompt "人工智能"
+```
+
+## Stage 5：Transformer Block
 
 状态：下一阶段实现。
 
 目标：
 
-- 将 Stage 3 的 single-head attention 扩展为 multi-head attention
-- 理解多个 attention head 并行学习不同关系
-- 理解 head concat
-- 理解输出投影
+- 在 Stage 4 Multi-Head Causal Self-Attention 的基础上加入 Transformer Block
+- 引入 Residual Connection
+- 引入 LayerNorm
+- 引入 FeedForward
 
-Stage 4 之前不要实现 Multi-Head Attention。
+Stage 5 之前不要实现 Transformer Block。

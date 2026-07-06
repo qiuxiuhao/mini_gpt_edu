@@ -1,0 +1,26 @@
+project_name: mini_gpt_edu
+stage: stage4_multi_head_causal_self_attention
+
+data:
+  raw_text_path: data/raw.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 64
+  n_embd: 128
+  n_head: 4
+  dropout: 0.0
+
+train:
+  batch_size: 32
+  max_iters: 1000
+  eval_interval: 100
+  eval_iters: 20
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: multi_head_lm_best.pt
+  tokenizer_name: tokenizer.json

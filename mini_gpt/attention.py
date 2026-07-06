@@ -3,6 +3,10 @@
 This module adds one attention head after token embedding + position embedding.
 It is intentionally small and does not implement multi-head attention,
 Transformer blocks, LayerNorm, FFN, LoRA, SFT, or RAG.
+
+Stage 4 修改：追加 Multi-Head Causal Self-Attention 教学实现。
+Stage 4 只增加多个 causal attention head、concat 和 output projection，
+不实现 Transformer Block、LayerNorm、FeedForward 或 Residual Connection。
 """
 
 from __future__ import annotations
@@ -181,3 +185,133 @@ class AttentionLanguageModel(nn.Module):
             idx = torch.cat((idx, next_id), dim=1)
 
         return idx
+
+
+class CausalSelfAttentionHead(nn.Module):
+    """Stage 4 新增：one head used inside Multi-Head Causal Self-Attention.
+
+    This class is intentionally similar to the Stage 3 single head, but is
+    named for Stage 4 so students can clearly see each head in a multi-head
+    module has its own Q, K, and V projections.
+    """
+
+    def __init__(self, n_embd: int, head_size: int, block_size: int) -> None:
+        super().__init__()
+        self.n_embd = n_embd
+        self.head_size = head_size
+        self.block_size = block_size
+
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.key = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
+
+        # causal_mask shape: [block_size, block_size]
+        causal_mask = torch.tril(torch.ones(block_size, block_size, dtype=torch.bool))
+        self.register_buffer("causal_mask", causal_mask)
+
+    def forward(
+        self, x: torch.Tensor, return_attention: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Stage 4 新增：run causal self-attention for one head.
+
+        x shape: [batch_size, block_size, n_embd]
+        head_out shape: [batch_size, block_size, head_size]
+        attention_weight shape: [batch_size, block_size, block_size]
+        """
+        _, block_size, _ = x.shape
+
+        # q shape: [batch_size, block_size, head_size]
+        q = self.query(x)
+
+        # k shape: [batch_size, block_size, head_size]
+        k = self.key(x)
+
+        # v shape: [batch_size, block_size, head_size]
+        v = self.value(x)
+
+        # attention_score shape: [batch_size, block_size, block_size]
+        attention_score = q @ k.transpose(-2, -1)
+        attention_score = attention_score / math.sqrt(self.head_size)
+
+        # mask shape: [block_size, block_size]
+        mask = self.causal_mask[:block_size, :block_size]
+        attention_score = attention_score.masked_fill(~mask, float("-inf"))
+
+        # attention_weight shape: [batch_size, block_size, block_size]
+        attention_weight = F.softmax(attention_score, dim=-1)
+
+        # head_out shape: [batch_size, block_size, head_size]
+        head_out = attention_weight @ v
+
+        if return_attention:
+            return head_out, attention_weight
+        return head_out, None
+
+
+class MultiHeadCausalSelfAttention(nn.Module):
+    """Stage 4 新增：multiple causal attention heads plus output projection."""
+
+    def __init__(
+        self, n_embd: int, n_head: int, block_size: int, dropout: float = 0.0
+    ) -> None:
+        super().__init__()
+        if n_embd % n_head != 0:
+            raise ValueError(
+                f"n_embd {n_embd} 必须能被 n_head {n_head} 整除，"
+                "这样才能计算 head_size = n_embd // n_head。"
+            )
+
+        self.n_embd = n_embd
+        self.n_head = n_head
+        self.block_size = block_size
+        self.dropout = dropout
+        self.head_size = n_embd // n_head
+
+        self.heads = nn.ModuleList(
+            [
+                CausalSelfAttentionHead(
+                    n_embd=n_embd,
+                    head_size=self.head_size,
+                    block_size=block_size,
+                )
+                for _ in range(n_head)
+            ]
+        )
+        self.output_projection = nn.Linear(n_embd, n_embd)
+        self.proj_dropout = nn.Dropout(dropout)
+
+    def forward(
+        self, x: torch.Tensor, return_attention: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Stage 4 新增：run all heads, concat outputs, then project.
+
+        x shape: [batch_size, block_size, n_embd]
+        concat_out shape: [batch_size, block_size, n_embd]
+        out shape: [batch_size, block_size, n_embd]
+        attention_weights shape: [batch_size, n_head, block_size, block_size]
+        """
+        head_outputs: list[torch.Tensor] = []
+        attention_weights: list[torch.Tensor] = []
+
+        for head in self.heads:
+            # head_out shape: [batch_size, block_size, head_size]
+            head_out, attention_weight = head(x, return_attention=return_attention)
+            head_outputs.append(head_out)
+
+            if return_attention:
+                if attention_weight is None:
+                    raise RuntimeError("attention_weight 不应为空")
+                attention_weights.append(attention_weight)
+
+        # concat_out shape: [batch_size, block_size, n_embd]
+        concat_out = torch.cat(head_outputs, dim=-1)
+
+        # out shape: [batch_size, block_size, n_embd]
+        out = self.output_projection(concat_out)
+        out = self.proj_dropout(out)
+
+        if return_attention:
+            # attention_weights shape: [batch_size, n_head, block_size, block_size]
+            stacked_attention = torch.stack(attention_weights, dim=1)
+            return out, stacked_attention
+        return out, None

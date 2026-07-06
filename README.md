@@ -7,7 +7,7 @@
 1. 字符级 Bigram 语言模型
 2. Embedding
 3. Single-Head Causal Self-Attention
-4. Multi-Head Attention
+4. Multi-Head Causal Self-Attention
 5. Transformer Block
 6. Decoder-only GPT
 7. 生成策略
@@ -17,13 +17,15 @@
 
 ## 当前阶段
 
-Stage 3：Single-Head Causal Self-Attention。
+Stage 4：Multi-Head Causal Self-Attention。
 
 Stage 1 字符级 Bigram 语言模型已完成。
 
 Stage 2 Embedding 语言模型 + Mac/4090 双设备配置已完成。
 
-Stage 3 当前只实现单头 causal self-attention，不实现 Multi-Head Attention、Transformer Block、LayerNorm、FFN、LoRA、SFT 或 RAG。
+Stage 3 Single-Head Causal Self-Attention 已完成。
+
+Stage 4 当前只实现 Multi-Head Causal Self-Attention，不实现 Transformer Block、LayerNorm、FeedForward、Residual Connection、SFT、LoRA 或 RAG。
 
 ## 环境配置
 
@@ -325,3 +327,209 @@ Stage 3 不实现：
 - `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
 
 Stage 4 才进入 Multi-Head Attention。
+
+## Stage 4：Multi-Head Causal Self-Attention
+
+Stage 4 在 Stage 3 single-head causal self-attention 的基础上，扩展为多个 causal attention head 并行计算。
+
+Stage 4 模型流程：
+
+```text
+token id
+  ↓
+token embedding + position embedding
+  ↓
+multi-head causal self-attention
+  ↓
+concat heads
+  ↓
+output projection
+  ↓
+lm_head
+  ↓
+next-token logits
+```
+
+## Stage 4 目标
+
+1. 在 Stage 3 单头 attention 的基础上实现多个 attention head。
+2. 理解每个 head 都有自己的 Q、K、V。
+3. 理解每个 head 都独立计算 `QK^T / sqrt(head_size)`。
+4. 理解每个 head 都使用 causal mask。
+5. 理解每个 head 都有自己的 softmax attention weight。
+6. 理解多个 head 的输出如何 concat。
+7. 理解 output projection 如何把 concat 输出映射回 `n_embd`。
+8. concat 后继续交给 `lm_head` 做 next-token prediction。
+9. 支持 Mac MPS 小规模调试。
+10. 支持 RTX 4090 24GB 较大配置训练。
+
+## Stage 4 和 Stage 3 的区别
+
+Stage 3 只有一个 attention head：
+
+```text
+x -> single head -> lm_head
+```
+
+Stage 4 有多个 attention head：
+
+```text
+x -> head 0 / head 1 / ... / head n -> concat -> output projection -> lm_head
+```
+
+## Stage 4 Mac 配置
+
+Stage 4 的 Mac 配置用于快速调试和学习 multi-head attention shape，建议文件名：
+
+```text
+configs/multi_head_lm_mac.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/raw.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 64
+  n_embd: 128
+  n_head: 4
+  dropout: 0.0
+
+train:
+  batch_size: 32
+  max_iters: 1000
+  eval_interval: 100
+  eval_iters: 20
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: multi_head_lm_best.pt
+  tokenizer_name: tokenizer.json
+```
+
+## Stage 4 4090 配置
+
+Stage 4 的 4090 配置用于较大 block size、batch size 和训练步数，建议文件名：
+
+```text
+configs/multi_head_lm_4090.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+  n_head: 8
+  dropout: 0.0
+
+train:
+  batch_size: 64
+  max_iters: 10000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: multi_head_lm_4090_best.pt
+  tokenizer_name: tokenizer_4090.json
+```
+
+## Stage 4 训练命令
+
+Mac 快速测试：
+
+```bash
+python -m mini_gpt.train_multi_head_lm \
+  --config configs/multi_head_lm_mac.yaml \
+  --max-iters 20
+```
+
+Mac MPS 小规模训练：
+
+```bash
+python -m mini_gpt.train_multi_head_lm \
+  --config configs/multi_head_lm_mac.yaml
+```
+
+RTX 4090 24GB 较大配置训练：
+
+```bash
+python -m mini_gpt.train_multi_head_lm \
+  --config configs/multi_head_lm_4090.yaml
+```
+
+## Stage 4 生成命令
+
+Mac 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_multi_head_lm \
+  --ckpt checkpoints/multi_head_lm_best.pt \
+  --prompt "人工智能"
+```
+
+4090 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_multi_head_lm \
+  --ckpt checkpoints/multi_head_lm_4090_best.pt \
+  --prompt "人工智能"
+```
+
+## Stage 4 多头注意力可视化命令
+
+```bash
+python -m mini_gpt.visualize_multi_head_attention \
+  --ckpt checkpoints/multi_head_lm_best.pt \
+  --prompt "人工智能"
+```
+
+默认输出到：
+
+```text
+outputs/attention/
+```
+
+## Stage 4 学习重点
+
+1. 多个 attention head 可以并行学习不同类型的 token 关系。
+2. 每个 head 都是一套独立的 causal self-attention。
+3. 每个 head 的 Q、K、V shape 是 `[batch_size, sequence_length, head_size]`。
+4. 每个 head 的 attention score shape 是 `[batch_size, sequence_length, sequence_length]`。
+5. causal mask shape 是 `[sequence_length, sequence_length]`。
+6. 每个 head 的 attention weight shape 是 `[batch_size, sequence_length, sequence_length]`。
+7. `head_size = n_embd // n_head`。
+8. 多个 head 输出 concat 后 shape 回到 `[batch_size, sequence_length, n_embd]`。
+9. output projection 继续保持 `[batch_size, sequence_length, n_embd]`。
+10. 每个 head 都可以单独查看 attention weight。
+11. Stage 4 不实现 Transformer Block，Stage 5 才进入 Transformer Block。
+
+## Stage 4 禁止内容
+
+Stage 4 不实现：
+
+- Transformer Block
+- LayerNorm
+- FeedForward
+- Residual Connection
+- SFT
+- LoRA
+- RAG
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+Stage 5 才进入 Transformer Block。

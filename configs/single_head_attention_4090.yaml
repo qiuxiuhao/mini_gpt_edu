@@ -1,0 +1,25 @@
+project_name: mini_gpt_edu
+stage: stage3_single_head_attention
+
+data:
+  raw_text_path: data/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+  head_size: 256
+
+train:
+  batch_size: 128
+  max_iters: 10000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: single_head_attention_4090_best.pt
+  tokenizer_name: tokenizer_4090.json

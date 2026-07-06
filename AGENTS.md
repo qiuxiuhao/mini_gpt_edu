@@ -23,14 +23,49 @@
 11. LoRA 微调
 12. RAG 知识库问答
 
+## 当前阶段状态
+
+当前已经完成：
+
+- Stage 1：字符级 Bigram 语言模型
+- Stage 2：Embedding 语言模型 + Mac/4090 双设备配置
+
+当前进入：
+
+- Stage 3：Single-Head Causal Self-Attention
+
+Stage 3 的实现边界非常重要：
+
+- 只在 Stage 2 `EmbeddingLanguageModel` 的基础上加入 single-head causal self-attention。
+- 只学习一个 attention head 中的 Q、K、V、`QK^T / sqrt(d)`、causal mask、softmax attention weight、`attention weight @ V`。
+- 后续实现 Stage 3 时，允许新增 `mini_gpt/attention.py`、`mini_gpt/train_attention_lm.py` 等 attention 专属文件。
+- Stage 3 可以抽取 `mini_gpt/training.py` 等通用模块，但必须保证 Stage 1 和 Stage 2 原有命令继续可用。
+- Stage 3 新增或修改的代码要用 docstring 或关键注释标明 `Stage 3 新增`、`Stage 3 修改` 或 `Stage 3 抽取`。
+- 支持 Mac MPS 小规模调试。
+- 支持 RTX 4090 24GB 较大配置训练。
+
+Stage 3 禁止实现：
+
+- Multi-Head Attention
+- Transformer Block
+- LayerNorm
+- FFN
+- LoRA
+- SFT
+- RAG
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+Stage 4 才实现 Multi-Head Attention。Stage 3 不要提前实现 Stage 4 的内容。
+
 ## 运行环境
 
 目标设备：
 
 - MacBook Air M4
+- RTX 4090 24GB
 - 24GB 内存
 - Apple Silicon
-- 优先支持 CPU 和 MPS
+- 优先支持 CUDA、MPS 和 CPU 自动选择
 
 Python 版本：
 
@@ -55,7 +90,7 @@ Python 版本：
 - langchain
 - llama-index
 
-这些库可以放在后续阶段，不要在第一阶段引入。
+这些库可以放在后续阶段，不要在 Stage 3 引入。
 
 ## 代码风格
 
@@ -67,7 +102,7 @@ Python 版本：
 4. 变量名要直观，例如 `token_ids`, `logits`, `loss`, `batch_size`, `block_size`。
 5. 不要过度封装。
 6. 不要为了工程复杂度而创建太多抽象层。
-7. 第一阶段优先保证清晰，而不是追求性能极致。
+7. 当前阶段优先保证清晰，而不是追求性能极致。
 
 ## 教学要求
 

@@ -1,8 +1,4 @@
-"""Generate text with the Stage 2 Embedding language model.
-
-Stage 3 修改：改为复用 mini_gpt.utils.resolve_tokenizer_path，
-原有 Stage 2 生成命令保持不变。
-"""
+"""Stage 3 新增：generate text with the Attention language model."""
 
 from __future__ import annotations
 
@@ -11,15 +7,15 @@ from pathlib import Path
 
 import torch
 
-from mini_gpt.embedding_lm import EmbeddingLanguageModel
+from mini_gpt.attention import AttentionLanguageModel
 from mini_gpt.tokenizer import CharTokenizer
 from mini_gpt.utils import get_device, load_checkpoint, resolve_tokenizer_path
 
 
 def main() -> None:
-    """Run text generation from command line arguments."""
+    """Stage 3 新增：run text generation from command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate text with an Embedding language model."
+        description="Generate text with a single-head Attention language model."
     )
     parser.add_argument("--ckpt", required=True, help="Path to model checkpoint.")
     parser.add_argument("--prompt", required=True, help="Prompt text.")
@@ -53,11 +49,13 @@ def main() -> None:
     vocab_size = int(checkpoint["vocab_size"])
     block_size = int(model_config["block_size"])
     n_embd = int(model_config["n_embd"])
+    head_size = int(model_config["head_size"])
 
-    model = EmbeddingLanguageModel(
+    model = AttentionLanguageModel(
         vocab_size=vocab_size,
         block_size=block_size,
         n_embd=n_embd,
+        head_size=head_size,
     ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()

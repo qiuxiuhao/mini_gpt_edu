@@ -1,4 +1,8 @@
-"""Generate text with the Stage 1 Bigram language model."""
+"""Generate text with the Stage 1 Bigram language model.
+
+Stage 3 修改：改为复用 mini_gpt.utils 中的设备、checkpoint 和 tokenizer
+查找工具，原有 Stage 1 生成命令保持不变。
+"""
 
 from __future__ import annotations
 
@@ -9,22 +13,7 @@ import torch
 
 from mini_gpt.bigram import BigramLanguageModel
 from mini_gpt.tokenizer import CharTokenizer
-
-
-def get_device(device_name: str) -> torch.device:
-    """Choose CPU or Apple Silicon MPS device."""
-    if device_name == "auto":
-        if torch.backends.mps.is_available():
-            return torch.device("mps")
-        return torch.device("cpu")
-
-    if device_name == "mps" and not torch.backends.mps.is_available():
-        raise ValueError("参数要求使用 mps，但当前 PyTorch 环境不可用 mps")
-
-    if device_name not in {"cpu", "mps"}:
-        raise ValueError("device 只能是 auto、cpu 或 mps")
-
-    return torch.device(device_name)
+from mini_gpt.utils import get_device, load_checkpoint, resolve_tokenizer_path
 
 
 def main() -> None:
@@ -41,21 +30,23 @@ def main() -> None:
     parser.add_argument(
         "--device",
         default="auto",
-        choices=["auto", "cpu", "mps"],
+        choices=["auto", "cpu", "mps", "cuda"],
         help="Device to run generation on.",
     )
     args = parser.parse_args()
 
     device = get_device(args.device)
     checkpoint_path = Path(args.ckpt)
-    tokenizer_path = checkpoint_path.parent / "tokenizer.json"
+    checkpoint = load_checkpoint(checkpoint_path, device)
 
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    tokenizer_path = resolve_tokenizer_path(
+        checkpoint_path=checkpoint_path,
+        tokenizer_path=checkpoint.get("tokenizer_path"),
+    )
     tokenizer = CharTokenizer.load(tokenizer_path)
 
-    model = BigramLanguageModel(vocab_size=checkpoint["vocab_size"])
+    model = BigramLanguageModel(vocab_size=int(checkpoint["vocab_size"])).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
-    model.to(device)
     model.eval()
 
     prompt_ids = tokenizer.encode(args.prompt)

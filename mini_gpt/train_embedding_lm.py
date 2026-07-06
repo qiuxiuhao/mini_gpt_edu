@@ -1,61 +1,22 @@
-"""Train the Stage 2 character-level Embedding language model."""
+"""Train the Stage 2 character-level Embedding language model.
+
+Stage 3 修改：改为复用 mini_gpt.training 中的通用训练函数，
+原有 Stage 2 训练命令保持不变。
+"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any
 
 import torch
-import yaml
 from tqdm import tqdm
 
 from mini_gpt.dataset import get_batch, read_text, train_val_split
 from mini_gpt.embedding_lm import EmbeddingLanguageModel
 from mini_gpt.tokenizer import CharTokenizer
+from mini_gpt.training import estimate_loss, load_config
 from mini_gpt.utils import get_device, save_checkpoint, set_seed
-
-
-def load_config(path: str | Path) -> dict[str, Any]:
-    """Load YAML config from disk."""
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-
-
-@torch.no_grad()
-def estimate_loss(
-    model: EmbeddingLanguageModel,
-    train_data: torch.Tensor,
-    val_data: torch.Tensor,
-    batch_size: int,
-    block_size: int,
-    eval_iters: int,
-    device: torch.device,
-) -> dict[str, float]:
-    """Estimate train and validation loss using random batches."""
-    model.eval()
-    losses: dict[str, float] = {}
-
-    for split_name, data in {"train": train_data, "val": val_data}.items():
-        # The validation text can be tiny in this teaching project, so use a
-        # smaller eval block if needed. Training still uses the configured
-        # block_size.
-        eval_block_size = min(block_size, len(data) - 1)
-        if eval_block_size < 1:
-            losses[split_name] = float("nan")
-            continue
-
-        split_losses = torch.zeros(eval_iters)
-        for iter_index in range(eval_iters):
-            x, y = get_batch(data, batch_size, eval_block_size, device)
-            _, loss = model(x, y)
-            if loss is None:
-                raise RuntimeError("loss 不应为空，请检查 targets 是否传入模型")
-            split_losses[iter_index] = loss.item()
-
-        losses[split_name] = split_losses.mean().item()
-
-    model.train()
-    return losses
 
 
 def main() -> None:

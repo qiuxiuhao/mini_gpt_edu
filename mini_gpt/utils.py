@@ -1,4 +1,8 @@
-"""Small shared utilities for MiniGPT-edu training and generation scripts."""
+"""Small shared utilities for MiniGPT-edu training and generation scripts.
+
+Stage 3 修改：增加 Attention LM 可复用的 checkpoint/tokenizer 工具，
+原有 Stage 1 和 Stage 2 命令保持不变。
+"""
 
 from __future__ import annotations
 
@@ -60,26 +64,57 @@ def save_checkpoint(
     tokenizer_path: str | Path,
     step: int,
     best_val_loss: float,
+    extra_metadata: dict[str, Any] | None = None,
 ) -> None:
     """Save a model checkpoint with enough metadata to recreate the model."""
     path = Path(path)
     ensure_dir(path.parent)
 
-    torch.save(
-        {
-            "model_state_dict": model.state_dict(),
-            "config": config,
-            "tokenizer_path": str(tokenizer_path),
-            "step": step,
-            "best_val_loss": best_val_loss,
-            "vocab_size": getattr(model, "vocab_size", None),
-            "block_size": getattr(model, "block_size", None),
-            "n_embd": getattr(model, "n_embd", None),
-        },
-        path,
-    )
+    checkpoint = {
+        "model_state_dict": model.state_dict(),
+        "config": config,
+        "tokenizer_path": str(tokenizer_path),
+        "step": step,
+        "best_val_loss": best_val_loss,
+        "vocab_size": getattr(model, "vocab_size", None),
+        "block_size": getattr(model, "block_size", None),
+        "n_embd": getattr(model, "n_embd", None),
+        # Stage 3 修改：AttentionLanguageModel exposes head_size.
+        "head_size": getattr(model, "head_size", None),
+    }
+    if extra_metadata is not None:
+        checkpoint.update(extra_metadata)
+
+    torch.save(checkpoint, path)
 
 
 def load_checkpoint(path: str | Path, device: torch.device) -> dict[str, Any]:
     """Load a checkpoint onto the requested device."""
     return torch.load(Path(path), map_location=device)
+
+
+def resolve_tokenizer_path(
+    checkpoint_path: str | Path, tokenizer_path: str | Path | None = None
+) -> Path:
+    """Stage 3 新增：find the tokenizer saved with a checkpoint.
+
+    Stage 2 and Stage 3 checkpoints store tokenizer_path. Older Stage 1
+    checkpoints may not, so this helper also falls back to tokenizer.json
+    beside the checkpoint.
+    """
+    checkpoint_path = Path(checkpoint_path)
+
+    if tokenizer_path is not None:
+        path = Path(tokenizer_path)
+        if path.exists():
+            return path
+
+        fallback_path = checkpoint_path.parent / path.name
+        if fallback_path.exists():
+            return fallback_path
+
+    default_path = checkpoint_path.parent / "tokenizer.json"
+    if default_path.exists():
+        return default_path
+
+    raise FileNotFoundError(f"找不到 tokenizer 文件: {tokenizer_path}")

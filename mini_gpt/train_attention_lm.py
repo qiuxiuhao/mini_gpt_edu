@@ -1,8 +1,4 @@
-"""Train the Stage 1 character-level Bigram language model.
-
-Stage 3 修改：改为复用 mini_gpt.training 和 mini_gpt.utils 中的通用
-训练/工具函数，原有 Stage 1 命令保持不变。
-"""
+"""Stage 3 新增：train the single-head Attention language model."""
 
 from __future__ import annotations
 
@@ -12,7 +8,7 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from mini_gpt.bigram import BigramLanguageModel
+from mini_gpt.attention import AttentionLanguageModel
 from mini_gpt.dataset import get_batch, read_text, train_val_split
 from mini_gpt.tokenizer import CharTokenizer
 from mini_gpt.training import estimate_loss, load_config
@@ -20,8 +16,10 @@ from mini_gpt.utils import get_device, save_checkpoint, set_seed
 
 
 def main() -> None:
-    """Run Bigram training from command line arguments."""
-    parser = argparse.ArgumentParser(description="Train a character Bigram model.")
+    """Stage 3 新增：run Attention LM training from command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Train a single-head causal self-attention language model."
+    )
     parser.add_argument("--config", required=True, help="Path to YAML config file.")
     parser.add_argument(
         "--max-iters",
@@ -40,27 +38,42 @@ def main() -> None:
     set_seed(int(train_config["seed"]))
 
     device = get_device(train_config["device"])
-    print(f"Using device: {device}")
 
     text = read_text(data_config["raw_text_path"])
     tokenizer = CharTokenizer.from_text(text)
     token_ids = tokenizer.encode(text)
     train_data, val_data = train_val_split(token_ids, data_config["train_ratio"])
 
+    vocab_size = tokenizer.vocab_size
     block_size = int(model_config["block_size"])
+    n_embd = int(model_config["n_embd"])
+    head_size = int(model_config["head_size"])
     batch_size = int(train_config["batch_size"])
     max_iters = int(args.max_iters or train_config["max_iters"])
     eval_interval = int(train_config["eval_interval"])
     eval_iters = int(train_config["eval_iters"])
     learning_rate = float(train_config["learning_rate"])
 
+    print(f"Using device: {device}")
+    print(f"vocab_size: {vocab_size}")
+    print(f"block_size: {block_size}")
+    print(f"n_embd: {n_embd}")
+    print(f"head_size: {head_size}")
+    print(f"batch_size: {batch_size}")
+    print(f"max_iters: {max_iters}")
+
     if len(train_data) <= block_size:
         raise ValueError(
             f"训练数据长度 {len(train_data)} 必须大于 block_size {block_size}。"
-            "请减小 block_size 或增加 data/raw.txt 文本。"
+            "请减小 block_size 或增加训练文本。"
         )
 
-    model = BigramLanguageModel(vocab_size=tokenizer.vocab_size).to(device)
+    model = AttentionLanguageModel(
+        vocab_size=vocab_size,
+        block_size=block_size,
+        n_embd=n_embd,
+        head_size=head_size,
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     checkpoint_dir = Path(output_config["checkpoint_dir"])
@@ -99,10 +112,6 @@ def main() -> None:
                     tokenizer_path=tokenizer_path,
                     step=iter_index,
                     best_val_loss=best_val_loss,
-                    extra_metadata={
-                        "vocab_size": tokenizer.vocab_size,
-                        "block_size": block_size,
-                    },
                 )
 
         # x shape: [batch_size, block_size]

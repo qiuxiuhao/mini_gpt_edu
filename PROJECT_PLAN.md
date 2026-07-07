@@ -12,8 +12,9 @@
 - Stage 1：字符级 Bigram 语言模型，已完成。
 - Stage 2：Embedding 语言模型 + Mac/4090 双设备配置，已完成。
 - Stage 3：Single-Head Causal Self-Attention，已完成。
-- Stage 4：Multi-Head Causal Self-Attention，当前进行中。
-- Stage 5：Transformer Block，下一阶段实现。
+- Stage 4：Multi-Head Causal Self-Attention，已完成。
+- Stage 5：Transformer Block，当前进行中。
+- Stage 6：完整 Decoder-only GPT，下一阶段实现。
 
 ## Stage 0：项目初始化
 
@@ -135,7 +136,7 @@ python -m mini_gpt.generate_attention_lm --ckpt checkpoints/single_head_attentio
 
 ## Stage 4：Multi-Head Causal Self-Attention
 
-状态：当前进行中。
+状态：已完成。
 
 目标：
 
@@ -171,7 +172,7 @@ python -m mini_gpt.generate_multi_head_lm --ckpt checkpoints/multi_head_lm_best.
 
 ## Stage 5：Transformer Block
 
-状态：下一阶段实现。
+状态：当前进行中。
 
 目标：
 
@@ -180,4 +181,31 @@ python -m mini_gpt.generate_multi_head_lm --ckpt checkpoints/multi_head_lm_best.
 - 引入 LayerNorm
 - 引入 FeedForward
 
-Stage 5 之前不要实现 Transformer Block。
+本阶段只实现 Transformer Block。
+
+本阶段不实现：
+
+- 完整 Decoder-only GPT
+- SFT
+- LoRA
+- RAG
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+计划验收命令：
+
+```bash
+python -m mini_gpt.train_transformer_block_lm --config configs/transformer_block_lm_mac.yaml --max-iters 20
+python -m mini_gpt.generate_transformer_block_lm --ckpt checkpoints/transformer_block_lm_best.pt --prompt "人工智能"
+```
+
+## Stage 6：完整 Decoder-only GPT
+
+状态：下一阶段实现。
+
+目标：
+
+- 将 Transformer Block 堆叠成完整 Decoder-only GPT
+- 支持多个 block
+- 整理 GPT 风格模型结构
+
+Stage 6 之前不要实现完整 Decoder-only GPT。

@@ -30,31 +30,29 @@
 - Stage 1：字符级 Bigram 语言模型
 - Stage 2：Embedding 语言模型 + Mac/4090 双设备配置
 - Stage 3：Single-Head Causal Self-Attention
+- Stage 4：Multi-Head Causal Self-Attention
 
 当前进入：
 
-- Stage 4：Multi-Head Causal Self-Attention
+- Stage 5：Transformer Block
 
-Stage 4 的实现边界非常重要：
+Stage 5 的实现边界非常重要：
 
-- 只在 Stage 3 single-head causal self-attention 的基础上实现 multi-head causal self-attention。
-- 只学习多个 attention head 并行计算、每个 head 的 Q/K/V、每个 head 的 causal mask、每个 head 的 softmax attention weight、多个 head 输出 concat 和 output projection。
-- Stage 4 新增或修改的代码要用 docstring 或关键注释标明 `Stage 4 新增`、`Stage 4 修改` 或 `Stage 4 抽取`。
+- 只在 Stage 4 Multi-Head Causal Self-Attention 的基础上实现 Transformer Block。
+- 本阶段包括 LayerNorm、Residual Connection、FeedForward，以及复用 Stage 4 的 Multi-Head Causal Self-Attention。
+- Stage 5 新增或修改的代码要用 docstring 或关键注释标明 `Stage 5 新增`、`Stage 5 修改` 或 `Stage 5 抽取`。
 - 支持 Mac MPS 小规模调试。
 - 支持 RTX 4090 24GB 较大配置训练。
 
-Stage 4 禁止实现：
+Stage 5 禁止实现：
 
-- Transformer Block
-- LayerNorm
-- FeedForward
-- Residual Connection
+- 完整 Decoder-only GPT
 - LoRA
 - SFT
 - RAG
 - `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
 
-Stage 5 才实现 Transformer Block。Stage 4 不要提前实现 Stage 5 的内容。
+Stage 6 才实现完整 Decoder-only GPT。Stage 5 不要提前实现 Stage 6 的内容。
 
 ## 运行环境
 
@@ -89,7 +87,7 @@ Python 版本：
 - langchain
 - llama-index
 
-这些库可以放在后续阶段，不要在 Stage 4 引入。
+这些库可以放在后续阶段，不要在 Stage 5 引入。
 
 ## 代码风格
 

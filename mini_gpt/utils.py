@@ -4,6 +4,8 @@ Stage 3 修改：增加 Attention LM 可复用的 checkpoint/tokenizer 工具，
 原有 Stage 1 和 Stage 2 命令保持不变。
 
 Stage 4 修改：checkpoint 额外保存 Multi-Head LM 的 n_head。
+
+Stage 5 修改：checkpoint 额外保存 Transformer Block LM 的 n_layer。
 """
 
 from __future__ import annotations
@@ -85,6 +87,8 @@ def save_checkpoint(
         "head_size": getattr(model, "head_size", None),
         # Stage 4 修改：MultiHeadLanguageModel exposes n_head.
         "n_head": getattr(model, "n_head", None),
+        # Stage 5 修改：TransformerBlockLanguageModel exposes n_layer.
+        "n_layer": getattr(model, "n_layer", None),
     }
     if extra_metadata is not None:
         checkpoint.update(extra_metadata)

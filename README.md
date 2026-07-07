@@ -17,7 +17,7 @@
 
 ## 当前阶段
 
-Stage 4：Multi-Head Causal Self-Attention。
+Stage 5：Transformer Block。
 
 Stage 1 字符级 Bigram 语言模型已完成。
 
@@ -25,7 +25,9 @@ Stage 2 Embedding 语言模型 + Mac/4090 双设备配置已完成。
 
 Stage 3 Single-Head Causal Self-Attention 已完成。
 
-Stage 4 当前只实现 Multi-Head Causal Self-Attention，不实现 Transformer Block、LayerNorm、FeedForward、Residual Connection、SFT、LoRA 或 RAG。
+Stage 4 Multi-Head Causal Self-Attention 已完成。
+
+Stage 5 当前只实现 Transformer Block，包括 LayerNorm、Residual Connection、FeedForward，并复用 Stage 4 的 Multi-Head Causal Self-Attention。不实现完整 Decoder-only GPT、SFT、LoRA 或 RAG。
 
 ## 环境配置
 
@@ -63,7 +65,7 @@ data/raw.txt
 4090 较大配置训练数据：
 
 ```text
-data/full_corpus.txt
+data/computer_knowledge/raw/full_corpus.txt
 ```
 
 ## Stage 1：字符级 Bigram 语言模型
@@ -533,3 +535,210 @@ Stage 4 不实现：
 - `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
 
 Stage 5 才进入 Transformer Block。
+
+## Stage 5：Transformer Block
+
+Stage 5 在 Stage 4 Multi-Head Causal Self-Attention 的基础上，实现一个最小 Transformer Block。
+
+Stage 5 模型流程：
+
+```text
+token id
+  ↓
+token embedding + position embedding
+  ↓
+Transformer Block
+  ├── LayerNorm
+  ├── Multi-Head Causal Self-Attention
+  ├── Residual Connection
+  ├── LayerNorm
+  ├── FeedForward
+  └── Residual Connection
+  ↓
+lm_head
+  ↓
+next-token logits
+```
+
+## Stage 5 目标
+
+1. 在 Stage 4 Multi-Head Causal Self-Attention 的基础上实现 Transformer Block。
+2. 理解 LayerNorm 的作用。
+3. 理解 Residual Connection 的作用。
+4. 理解 FeedForward 的作用。
+5. 理解 block 输入和输出 shape 都保持 `[batch_size, sequence_length, n_embd]`。
+6. 继续做字符级 next-token prediction。
+7. 支持 Mac MPS 小规模调试。
+8. 支持 RTX 4090 24GB 较大配置训练。
+
+## Stage 5 和 Stage 4 的区别
+
+Stage 4 只实现 multi-head attention：
+
+```text
+x -> multi-head attention -> lm_head
+```
+
+Stage 5 把 multi-head attention 放进 Transformer Block：
+
+```text
+x -> LayerNorm -> multi-head attention -> residual
+  -> LayerNorm -> feedforward -> residual
+  -> lm_head
+```
+
+## Stage 5 Mac 配置
+
+Stage 5 的 Mac 配置用于快速调试 Transformer Block，建议文件名：
+
+```text
+configs/transformer_block_lm_mac.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/raw.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 64
+  n_embd: 128
+  n_head: 4
+  n_layer: 1
+  dropout: 0.0
+
+train:
+  batch_size: 32
+  max_iters: 1000
+  eval_interval: 100
+  eval_iters: 20
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: transformer_block_lm_best.pt
+  tokenizer_name: tokenizer.json
+```
+
+## Stage 5 4090 配置
+
+Stage 5 的 4090 配置用于较大 block size、batch size 和训练步数，建议文件名：
+
+```text
+configs/transformer_block_lm_4090.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+  n_head: 8
+  n_layer: 1
+  dropout: 0.1
+
+train:
+  batch_size: 64
+  max_iters: 10000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.001
+  seed: 42
+  device: auto
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: transformer_block_lm_4090_best.pt
+  tokenizer_name: tokenizer_4090.json
+```
+
+## Stage 5 训练命令
+
+Mac 快速测试：
+
+```bash
+python -m mini_gpt.train_transformer_block_lm \
+  --config configs/transformer_block_lm_mac.yaml \
+  --max-iters 20
+```
+
+Mac MPS 小规模训练：
+
+```bash
+python -m mini_gpt.train_transformer_block_lm \
+  --config configs/transformer_block_lm_mac.yaml
+```
+
+RTX 4090 24GB 较大配置训练：
+
+```bash
+python -m mini_gpt.train_transformer_block_lm \
+  --config configs/transformer_block_lm_4090.yaml
+```
+
+## Stage 5 生成命令
+
+Mac 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_transformer_block_lm \
+  --ckpt checkpoints/transformer_block_lm_best.pt \
+  --prompt "人工智能"
+```
+
+4090 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_transformer_block_lm \
+  --ckpt checkpoints/transformer_block_lm_4090_best.pt \
+  --prompt "人工智能"
+```
+
+## Stage 5 可视化命令
+
+Transformer Block attention 可视化：
+
+```bash
+python -m mini_gpt.visualize_transformer_block_attention \
+  --ckpt checkpoints/transformer_block_lm_best.pt \
+  --prompt "人工智能"
+```
+
+默认输出目录：
+
+```text
+outputs/transformer_block_attention/
+```
+
+## Stage 5 学习重点
+
+1. Transformer Block 是 GPT 中反复堆叠的基本单元。
+2. Stage 5 只实现一个 block，不实现完整 Decoder-only GPT。
+3. LayerNorm 用来稳定子层输入。
+4. Residual Connection 让输入可以绕过子层直接加到输出上。
+5. FeedForward 对每个位置的 hidden state 做非线性变换。
+6. Multi-Head Causal Self-Attention 复用 Stage 4 的实现。
+7. block 输入和输出 shape 都是 `[batch_size, sequence_length, n_embd]`。
+8. Stage 6 才进入完整 Decoder-only GPT。
+
+## Stage 5 禁止内容
+
+Stage 5 不实现：
+
+- 完整 Decoder-only GPT
+- 多层 Transformer Block 堆叠
+- SFT
+- LoRA
+- RAG
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+Stage 6 才进入完整 Decoder-only GPT。

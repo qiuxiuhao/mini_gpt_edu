@@ -31,28 +31,35 @@
 - Stage 2：Embedding 语言模型 + Mac/4090 双设备配置
 - Stage 3：Single-Head Causal Self-Attention
 - Stage 4：Multi-Head Causal Self-Attention
+- Stage 5：Transformer Block
 
 当前进入：
 
-- Stage 5：Transformer Block
+- Stage 6：完整 Decoder-only GPT
 
-Stage 5 的实现边界非常重要：
+Stage 6 的实现边界非常重要：
 
-- 只在 Stage 4 Multi-Head Causal Self-Attention 的基础上实现 Transformer Block。
-- 本阶段包括 LayerNorm、Residual Connection、FeedForward，以及复用 Stage 4 的 Multi-Head Causal Self-Attention。
-- Stage 5 新增或修改的代码要用 docstring 或关键注释标明 `Stage 5 新增`、`Stage 5 修改` 或 `Stage 5 抽取`。
+- 只实现完整 Decoder-only GPT 主干模型。
+- 本阶段包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。
+- 本阶段允许实现最小 `temperature` 和 `top_k` 生成参数。
+- 继续复用 Stage 5 的 Transformer Block 思路，不引入复杂工程框架。
+- Stage 6 新增或修改的代码要用 docstring 或关键注释标明 `Stage 6 新增`、`Stage 6 修改` 或 `Stage 6 抽取`。
 - 支持 Mac MPS 小规模调试。
 - 支持 RTX 4090 24GB 较大配置训练。
 
-Stage 5 禁止实现：
+Stage 6 禁止实现：
 
-- 完整 Decoder-only GPT
-- LoRA
 - SFT
+- LoRA
 - RAG
+- BPE tokenizer
+- KV Cache
+- Flash Attention
+- 量化
+- 模型服务部署
 - `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
 
-Stage 6 才实现完整 Decoder-only GPT。Stage 5 不要提前实现 Stage 6 的内容。
+Stage 7 才进入生成策略优化。Stage 6 不要提前实现 Stage 7 的内容。
 
 ## 运行环境
 
@@ -87,7 +94,7 @@ Python 版本：
 - langchain
 - llama-index
 
-这些库可以放在后续阶段，不要在 Stage 5 引入。
+这些库可以放在后续阶段，不要在 Stage 6 引入。
 
 ## 代码风格
 

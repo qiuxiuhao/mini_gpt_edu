@@ -1,0 +1,33 @@
+project_name: mini_gpt_edu
+stage: stage6_decoder_only_gpt_4090
+
+data:
+  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+  n_head: 8
+  n_layer: 4
+  dropout: 0.1
+
+train:
+  batch_size: 64
+  max_iters: 20000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.0005
+  weight_decay: 0.01
+  seed: 42
+  device: auto
+
+generate:
+  max_new_tokens: 500
+  temperature: 0.9
+  top_k: 50
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: gpt_4090_best.pt
+  tokenizer_name: tokenizer_gpt_4090.json

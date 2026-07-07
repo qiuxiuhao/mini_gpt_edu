@@ -17,7 +17,7 @@
 
 ## 当前阶段
 
-Stage 5：Transformer Block。
+Stage 6：完整 Decoder-only GPT。
 
 Stage 1 字符级 Bigram 语言模型已完成。
 
@@ -27,7 +27,9 @@ Stage 3 Single-Head Causal Self-Attention 已完成。
 
 Stage 4 Multi-Head Causal Self-Attention 已完成。
 
-Stage 5 当前只实现 Transformer Block，包括 LayerNorm、Residual Connection、FeedForward，并复用 Stage 4 的 Multi-Head Causal Self-Attention。不实现完整 Decoder-only GPT、SFT、LoRA 或 RAG。
+Stage 5 Transformer Block 已完成。
+
+Stage 6 当前只实现完整 Decoder-only GPT 主干模型，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。不实现 SFT、LoRA、RAG、BPE tokenizer、KV Cache 或 Flash Attention。
 
 ## 环境配置
 
@@ -53,6 +55,9 @@ pip install -r requirements.txt
 - `accelerate`
 - `langchain`
 - `llama-index`
+- BPE tokenizer
+- KV Cache
+- Flash Attention
 
 ## 数据准备
 
@@ -742,3 +747,232 @@ Stage 5 不实现：
 - `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
 
 Stage 6 才进入完整 Decoder-only GPT。
+
+## Stage 6：完整 Decoder-only GPT
+
+Stage 6 在 Stage 5 Transformer Block 的基础上，实现完整 Decoder-only GPT 主干模型。
+
+Stage 6 模型流程：
+
+```text
+token id
+  ↓
+token embedding + position embedding
+  ↓
+Transformer Block 1
+  ↓
+Transformer Block 2
+  ↓
+...
+  ↓
+Transformer Block n_layer
+  ↓
+final LayerNorm
+  ↓
+lm_head
+  ↓
+next-token logits
+```
+
+## Stage 6 目标
+
+1. 将 Stage 5 的 Transformer Block 堆叠成完整 Decoder-only GPT 主干。
+2. 支持多个 Transformer Block。
+3. 在所有 block 后加入 final LayerNorm。
+4. 使用 `lm_head` 输出 vocab logits。
+5. 继续做字符级 next-token prediction。
+6. 支持 attention 权重可视化。
+7. 支持模型参数统计。
+8. 支持 Mac MPS 小规模调试。
+9. 支持 RTX 4090 24GB 较大配置训练。
+10. 支持最小 `temperature` 和 `top_k` 生成参数。
+
+## Stage 6 和 Stage 5 的区别
+
+Stage 5 只实现一个 Transformer Block：
+
+```text
+x -> Transformer Block -> lm_head
+```
+
+Stage 6 实现完整 GPT 主干：
+
+```text
+x -> Block 1 -> Block 2 -> ... -> Block n_layer -> final LayerNorm -> lm_head
+```
+
+## Stage 6 Mac 配置
+
+Stage 6 的 Mac 配置用于快速调试完整 GPT 主干，建议文件名：
+
+```text
+configs/gpt_mac.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/raw.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 64
+  n_embd: 128
+  n_head: 4
+  n_layer: 2
+  dropout: 0.1
+
+train:
+  batch_size: 32
+  max_iters: 1000
+  eval_interval: 100
+  eval_iters: 20
+  learning_rate: 0.001
+  weight_decay: 0.01
+  seed: 42
+  device: auto
+
+generate:
+  max_new_tokens: 200
+  temperature: 1.0
+  top_k: null
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: gpt_best.pt
+  tokenizer_name: tokenizer_gpt.json
+```
+
+## Stage 6 4090 配置
+
+Stage 6 的 4090 配置用于较大 block size、embedding size、层数和训练步数，建议文件名：
+
+```text
+configs/gpt_4090.yaml
+```
+
+建议参数：
+
+```yaml
+data:
+  raw_text_path: data/computer_knowledge/raw/full_corpus.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 256
+  n_embd: 256
+  n_head: 8
+  n_layer: 4
+  dropout: 0.1
+
+train:
+  batch_size: 64
+  max_iters: 20000
+  eval_interval: 500
+  eval_iters: 100
+  learning_rate: 0.0005
+  weight_decay: 0.01
+  seed: 42
+  device: auto
+
+generate:
+  max_new_tokens: 500
+  temperature: 0.9
+  top_k: 50
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: gpt_4090_best.pt
+  tokenizer_name: tokenizer_gpt_4090.json
+```
+
+## Stage 6 训练命令
+
+Mac 快速测试：
+
+```bash
+python -m mini_gpt.train_gpt \
+  --config configs/gpt_mac.yaml \
+  --max-iters 20
+```
+
+Mac MPS 小规模训练：
+
+```bash
+python -m mini_gpt.train_gpt \
+  --config configs/gpt_mac.yaml
+```
+
+RTX 4090 24GB 较大配置训练：
+
+```bash
+python -m mini_gpt.train_gpt \
+  --config configs/gpt_4090.yaml
+```
+
+## Stage 6 生成命令
+
+Mac 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_gpt \
+  --ckpt checkpoints/gpt_best.pt \
+  --prompt "人工智能" \
+  --temperature 1.0 \
+  --top-k 50
+```
+
+4090 配置 checkpoint：
+
+```bash
+python -m mini_gpt.generate_gpt \
+  --ckpt checkpoints/gpt_4090_best.pt \
+  --prompt "人工智能" \
+  --temperature 0.9 \
+  --top-k 50
+```
+
+## Stage 6 可视化和统计命令
+
+GPT attention 可视化：
+
+```bash
+python -m mini_gpt.visualize_gpt_attention \
+  --ckpt checkpoints/gpt_best.pt \
+  --prompt "人工智能"
+```
+
+模型参数统计：
+
+```bash
+python -m mini_gpt.model_summary \
+  --config configs/gpt_mac.yaml
+```
+
+## Stage 6 学习重点
+
+1. Decoder-only GPT 是多个 Transformer Block 的堆叠。
+2. 每一层 block 的输入和输出 shape 都保持 `[batch_size, sequence_length, n_embd]`。
+3. final LayerNorm 位于所有 block 之后、`lm_head` 之前。
+4. `lm_head` 将 hidden state 映射为 `[batch_size, sequence_length, vocab_size]`。
+5. attention 可视化需要区分 layer 和 head。
+6. 参数量主要来自 embedding、attention、FeedForward、LayerNorm 和 `lm_head`。
+7. `temperature` 控制 logits 缩放，数值越低越保守。
+8. `top_k` 只保留分数最高的 k 个候选 token。
+9. Stage 6 仍然使用字符级 tokenizer。
+10. Stage 7 才进入更完整的生成策略优化。
+
+## Stage 6 禁止内容
+
+Stage 6 不实现：
+
+- SFT
+- LoRA
+- RAG
+- BPE tokenizer
+- KV Cache
+- Flash Attention
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+Stage 7 才进入生成策略优化。

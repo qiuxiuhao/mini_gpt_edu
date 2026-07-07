@@ -1,0 +1,33 @@
+project_name: mini_gpt_edu
+stage: stage6_decoder_only_gpt
+
+data:
+  raw_text_path: data/raw.txt
+  train_ratio: 0.9
+
+model:
+  block_size: 64
+  n_embd: 128
+  n_head: 4
+  n_layer: 2
+  dropout: 0.1
+
+train:
+  batch_size: 32
+  max_iters: 1000
+  eval_interval: 100
+  eval_iters: 20
+  learning_rate: 0.001
+  weight_decay: 0.01
+  seed: 42
+  device: auto
+
+generate:
+  max_new_tokens: 200
+  temperature: 1.0
+  top_k: null
+
+output:
+  checkpoint_dir: checkpoints
+  best_ckpt_name: gpt_best.pt
+  tokenizer_name: tokenizer_gpt.json

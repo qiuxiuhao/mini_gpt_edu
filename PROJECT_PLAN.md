@@ -13,8 +13,9 @@
 - Stage 2：Embedding 语言模型 + Mac/4090 双设备配置，已完成。
 - Stage 3：Single-Head Causal Self-Attention，已完成。
 - Stage 4：Multi-Head Causal Self-Attention，已完成。
-- Stage 5：Transformer Block，当前进行中。
-- Stage 6：完整 Decoder-only GPT，下一阶段实现。
+- Stage 5：Transformer Block，已完成。
+- Stage 6：完整 Decoder-only GPT，当前进行中。
+- Stage 7：生成策略优化，下一阶段实现。
 
 ## Stage 0：项目初始化
 
@@ -172,7 +173,7 @@ python -m mini_gpt.generate_multi_head_lm --ckpt checkpoints/multi_head_lm_best.
 
 ## Stage 5：Transformer Block
 
-状态：当前进行中。
+状态：已完成。
 
 目标：
 
@@ -200,12 +201,53 @@ python -m mini_gpt.generate_transformer_block_lm --ckpt checkpoints/transformer_
 
 ## Stage 6：完整 Decoder-only GPT
 
-状态：下一阶段实现。
+状态：当前进行中。
 
 目标：
 
 - 将 Transformer Block 堆叠成完整 Decoder-only GPT
-- 支持多个 block
-- 整理 GPT 风格模型结构
+- 支持多层 Transformer Block
+- 添加 final LayerNorm
+- 添加 `lm_head`
+- 继续做字符级 next-token prediction
+- 支持训练、生成、attention 可视化和模型参数统计
+- 支持最小 `temperature` 和 `top_k` 生成参数
+- 支持 Mac MPS 小规模调试
+- 支持 RTX 4090 24GB 较大配置训练
 
-Stage 6 之前不要实现完整 Decoder-only GPT。
+本阶段只实现完整 Decoder-only GPT 主干模型。
+
+本阶段不实现：
+
+- SFT
+- LoRA
+- RAG
+- BPE tokenizer
+- KV Cache
+- Flash Attention
+- 量化
+- 模型服务部署
+- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
+
+计划验收命令：
+
+```bash
+python -m mini_gpt.train_gpt --config configs/gpt_mac.yaml --max-iters 20
+python -m mini_gpt.generate_gpt --ckpt checkpoints/gpt_best.pt --prompt "人工智能"
+python -m mini_gpt.visualize_gpt_attention --ckpt checkpoints/gpt_best.pt --prompt "人工智能"
+python -m mini_gpt.model_summary --config configs/gpt_mac.yaml
+```
+
+## Stage 7：生成策略优化
+
+状态：下一阶段实现。
+
+目标：
+
+- 优化生成策略
+- 支持 top-p
+- 支持 greedy / sampling 模式切换
+- 支持 repetition penalty
+- 管理更完整的生成配置
+
+Stage 7 之前不要提前实现生成策略优化。

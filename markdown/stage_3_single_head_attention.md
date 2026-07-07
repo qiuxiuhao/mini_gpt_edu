@@ -1,106 +1,46 @@
 # Stage 3：Single-Head Causal Self-Attention
 
-## 状态
+## 阶段定位
 
-已完成。
+Stage 3 在 Embedding LM 的基础上加入单头因果自注意力。这个阶段的重点是让每个位置不再只看自己的 token 表示，而是可以读取左侧历史 token 的信息。
 
-本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
+## 本阶段核心升级
 
-## 学习目标
+Stage 2 只有 token embedding 和 position embedding，每个位置主要独立预测。Stage 3 加入 Causal Self-Attention 后，当前位置可以根据 Q/K/V 和 attention weight 选择性地读取历史上下文，但不能看未来 token。
 
-Stage 3 在 Stage 2 `EmbeddingLanguageModel` 的基础上加入单头 causal self-attention。
+## 代码位置索引
 
-模型流程：
+| 文件 | 类 / 函数 | 阅读重点 |
+|---|---|---|
+| `mini_gpt/attention.py` | `SingleHeadCausalSelfAttention` | 单头因果自注意力整体 |
+| `mini_gpt/attention.py` | `SingleHeadCausalSelfAttention.__init__` | 定义 key、query、value、causal mask |
+| `mini_gpt/attention.py` | `SingleHeadCausalSelfAttention.forward` | 计算 Q/K/V、attention score、mask、softmax、weighted sum |
+| `mini_gpt/attention_lm.py` | `AttentionLanguageModel` | Embedding LM + 单头注意力的语言模型 |
+| `mini_gpt/attention_lm.py` | `AttentionLanguageModel.__init__` | 定义 embedding、attention、lm_head |
+| `mini_gpt/attention_lm.py` | `AttentionLanguageModel.forward` | embedding 后进入 attention，再输出 logits |
+| `mini_gpt/attention_lm.py` | `AttentionLanguageModel.generate` | 单头注意力模型的自回归生成 |
+| `mini_gpt/train_attention_lm.py` | `main` | Stage 3 训练入口 |
+| `mini_gpt/generate_attention_lm.py` | `main` | Stage 3 生成入口 |
+| `mini_gpt/training.py` | `load_config` | 抽取出的通用配置读取函数 |
+| `mini_gpt/training.py` | `estimate_loss` | 抽取出的通用 loss 评估函数 |
+| `mini_gpt/utils.py` | `get_device` | 通用设备选择 |
+| `mini_gpt/utils.py` | `save_checkpoint` | 保存模型元数据 |
+| `mini_gpt/utils.py` | `resolve_tokenizer_path` | 兼容不同阶段 checkpoint 的 tokenizer 路径 |
 
-```text
-token id
-  ↓
-token embedding + position embedding
-  ↓
-single-head causal self-attention
-  ↓
-lm_head
-  ↓
-next-token logits
-```
+## Attention 计算逻辑
 
-重点理解：
+1. 输入 `x` 的 shape 是 `[B, T, C]`。
+2. 线性映射得到 Q、K、V。
+3. 计算注意力分数 `QK^T / sqrt(head_size)`。
+4. 使用 causal mask 把未来位置屏蔽掉。
+5. 对分数做 softmax 得到 attention weight。
+6. 用 attention weight 加权求和 V，得到上下文表示。
+7. 输出仍保持 `[B, T, head_size]` 或映射回模型需要的维度。
 
-1. Q、K、V 都来自同一个 hidden state `x`，但通过不同线性层得到。
-2. `QK^T / sqrt(d)` 表示缩放后的注意力分数。
-3. causal mask 让当前位置只能看见自己和之前的 token。
-4. softmax 把被允许的位置转成概率权重。
-5. `attention weight @ V` 得到融合上下文后的表示。
-6. 本阶段只有一个 attention head，Multi-Head Attention 留到 Stage 4。
+## 本阶段你应该掌握
 
-## 配置文件
-
-Mac 配置：
-
-```text
-configs/single_head_attention_mac.yaml
-```
-
-RTX 4090 配置：
-
-```text
-configs/single_head_attention_4090.yaml
-```
-
-## 训练命令
-
-Mac 快速测试：
-
-```bash
-python -m mini_gpt.train_attention_lm \
-  --config configs/single_head_attention_mac.yaml \
-  --max-iters 20
-```
-
-Mac MPS 小规模训练：
-
-```bash
-python -m mini_gpt.train_attention_lm \
-  --config configs/single_head_attention_mac.yaml
-```
-
-RTX 4090 24GB 较大配置训练：
-
-```bash
-python -m mini_gpt.train_attention_lm \
-  --config configs/single_head_attention_4090.yaml
-```
-
-## 推理命令
-
-Mac 配置 checkpoint：
-
-```bash
-python -m mini_gpt.generate_attention_lm \
-  --ckpt checkpoints/single_head_attention_best.pt \
-  --prompt "人工智能"
-```
-
-4090 配置 checkpoint：
-
-```bash
-python -m mini_gpt.generate_attention_lm \
-  --ckpt checkpoints/single_head_attention_4090_best.pt \
-  --prompt "人工智能"
-```
-
-## Attention 权重接口
-
-`AttentionLanguageModel.forward(..., return_attention=True)` 会额外返回 attention weight：
-
-```text
-attention_weight shape: [batch_size, sequence_length, sequence_length]
-```
-
-## 本阶段边界
-
-Stage 3 聚焦单头 causal self-attention，Multi-Head Attention、Transformer Block 和完整 GPT 主干留到后续已完成阶段逐步引入。
-
-## 返回
-
-[返回 README](../README.md)
+- Q、K、V 分别代表什么
+- 为什么要除以 `sqrt(head_size)`
+- causal mask 为什么能防止偷看未来
+- attention weight 的 shape 为什么是 `[B, T, T]`
+- 训练和生成为什么都必须遵守“只能看左边”的规则

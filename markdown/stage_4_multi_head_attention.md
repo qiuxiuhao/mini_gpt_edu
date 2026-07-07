@@ -1,117 +1,48 @@
 # Stage 4：Multi-Head Causal Self-Attention
 
-## 状态
+## 阶段定位
 
-已完成。
+Stage 4 把 Stage 3 的单头注意力扩展成多头注意力。多个 head 并行工作，每个 head 都有自己的 Q、K、V 和 causal mask，最后把多个 head 的输出拼接起来，再经过输出投影。
 
-本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
+## 本阶段核心升级
 
-## 学习目标
+单头注意力更像“一个人从一个角度看上下文”，多头注意力更像“多个人从不同角度一起看上下文”。这种结构能让模型学习到更丰富的上下文关系。
 
-Stage 4 在 Stage 3 single-head causal self-attention 的基础上，扩展为多个 causal attention head 并行计算。
+## 代码位置索引
 
-模型流程：
+| 文件 | 类 / 函数 | 阅读重点 |
+|---|---|---|
+| `mini_gpt/attention.py` | `CausalSelfAttentionHead` | 单个 head 的计算单元 |
+| `mini_gpt/attention.py` | `CausalSelfAttentionHead.__init__` | 定义单个 head 的 Q/K/V 和 mask |
+| `mini_gpt/attention.py` | `CausalSelfAttentionHead.forward` | 单个 head 的 attention 计算 |
+| `mini_gpt/attention.py` | `MultiHeadCausalSelfAttention` | 多头注意力整体 |
+| `mini_gpt/attention.py` | `MultiHeadCausalSelfAttention.__init__` | 创建多个 head 和 output projection |
+| `mini_gpt/attention.py` | `MultiHeadCausalSelfAttention.forward` | 并行执行多个 head、concat、projection |
+| `mini_gpt/multi_head_lm.py` | `MultiHeadLanguageModel` | 多头注意力语言模型 |
+| `mini_gpt/multi_head_lm.py` | `MultiHeadLanguageModel.__init__` | embedding、多头注意力、lm_head |
+| `mini_gpt/multi_head_lm.py` | `MultiHeadLanguageModel.forward` | 前向传播并可选返回 attention |
+| `mini_gpt/multi_head_lm.py` | `MultiHeadLanguageModel.generate` | 多头模型生成文本 |
+| `mini_gpt/train_multi_head_lm.py` | `main` | Stage 4 训练入口 |
+| `mini_gpt/generate_multi_head_lm.py` | `main` | Stage 4 生成入口 |
+| `mini_gpt/visualize_multi_head_attention.py` | `save_head_heatmap` | 保存单个 head 的注意力热力图 |
+| `mini_gpt/visualize_multi_head_attention.py` | `main` | 加载模型并保存所有 head 的热力图 |
+| `mini_gpt/utils.py` | `save_checkpoint` | Stage 4 额外保存 `n_head` |
 
-```text
-token id
-  ↓
-token embedding + position embedding
-  ↓
-multi-head causal self-attention
-  ↓
-concat heads
-  ↓
-output projection
-  ↓
-lm_head
-  ↓
-next-token logits
-```
+## 关键 shape
 
-重点理解：
+| 张量 | shape |
+|---|---|
+| `x` | `[B, T, C]` |
+| 单个 head 的 `q/k/v` | `[B, T, head_size]` |
+| 单个 head 的 attention weight | `[B, T, T]` |
+| 多个 head 拼接后 | `[B, T, C]` |
+| output projection 后 | `[B, T, C]` |
+| logits | `[B, T, V]` |
 
-1. 每个 head 都有自己的 Q、K、V。
-2. 每个 head 都独立计算 `QK^T / sqrt(head_size)`。
-3. 每个 head 都使用 causal mask。
-4. 多个 head 的输出会 concat。
-5. output projection 把 concat 输出映射回 `n_embd`。
-6. 每个 head 都可以单独查看 attention weight。
-7. Stage 5 在此基础上进入 Transformer Block。
+## 本阶段你应该掌握
 
-## 配置文件
-
-Mac 配置：
-
-```text
-configs/multi_head_lm_mac.yaml
-```
-
-RTX 4090 配置：
-
-```text
-configs/multi_head_lm_4090.yaml
-```
-
-## 训练命令
-
-Mac 快速测试：
-
-```bash
-python -m mini_gpt.train_multi_head_lm \
-  --config configs/multi_head_lm_mac.yaml \
-  --max-iters 20
-```
-
-Mac MPS 小规模训练：
-
-```bash
-python -m mini_gpt.train_multi_head_lm \
-  --config configs/multi_head_lm_mac.yaml
-```
-
-RTX 4090 24GB 较大配置训练：
-
-```bash
-python -m mini_gpt.train_multi_head_lm \
-  --config configs/multi_head_lm_4090.yaml
-```
-
-## 推理命令
-
-Mac 配置 checkpoint：
-
-```bash
-python -m mini_gpt.generate_multi_head_lm \
-  --ckpt checkpoints/multi_head_lm_best.pt \
-  --prompt "人工智能"
-```
-
-4090 配置 checkpoint：
-
-```bash
-python -m mini_gpt.generate_multi_head_lm \
-  --ckpt checkpoints/multi_head_lm_4090_best.pt \
-  --prompt "人工智能"
-```
-
-## 可视化命令
-
-```bash
-python -m mini_gpt.visualize_multi_head_attention \
-  --ckpt checkpoints/multi_head_lm_best.pt \
-  --prompt "人工智能"
-```
-
-默认输出到：
-
-```text
-outputs/attention/
-```
-
-## 本阶段边界
-
-Stage 4 聚焦 Multi-Head Causal Self-Attention，Transformer Block 和完整 GPT 主干留到后续已完成阶段逐步引入。
-
-## 返回
-
-[返回 README](../README.md)
+- 为什么 `n_embd` 必须能被 `n_head` 整除
+- `head_size = n_embd / n_head` 的含义
+- 多个 head 如何并行工作
+- concat 后为什么还要 output projection
+- attention 可视化如何帮助理解不同 head 的分工

@@ -2,7 +2,9 @@
 
 MiniGPT-edu 是一个从零实现教学版 GPT 语言模型的项目，目标是帮助零基础学习者通过项目实战理解大模型核心算法。
 
-项目按阶段推进，从字符级 Bigram 语言模型逐步扩展到 Embedding、Causal Self-Attention、Multi-Head Attention、Transformer Block、Decoder-only GPT，并在后续阶段继续进入生成策略、SFT、LoRA 和 RAG。
+本项目的目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。
+
+当前项目已经完成到 Stage 6：完整 Decoder-only GPT。接下来后续学习可转至 minimind。
 
 ## 阶段总览
 
@@ -14,36 +16,24 @@ MiniGPT-edu 是一个从零实现教学版 GPT 语言模型的项目，目标是
 | Stage 3 | Single-Head Causal Self-Attention | ✅ | [markdown/stage_3_single_head_attention.md](markdown/stage_3_single_head_attention.md) |
 | Stage 4 | Multi-Head Causal Self-Attention | ✅ | [markdown/stage_4_multi_head_attention.md](markdown/stage_4_multi_head_attention.md) |
 | Stage 5 | Transformer Block | ✅ | [markdown/stage_5_transformer_block.md](markdown/stage_5_transformer_block.md) |
-| Stage 6 | 完整 Decoder-only GPT |  | [markdown/stage_6_decoder_only_gpt.md](markdown/stage_6_decoder_only_gpt.md) |
-| Stage 7 | 生成策略优化 |  | [markdown/stage_7_generation_strategy.md](markdown/stage_7_generation_strategy.md) |
-| Stage 8 | SFT 指令微调 |  | [markdown/stage_8_sft.md](markdown/stage_8_sft.md) |
-| Stage 9 | LoRA 微调 |  | [markdown/stage_9_lora.md](markdown/stage_9_lora.md) |
-| Stage 10 | RAG 知识库问答 |  | [markdown/stage_10_rag.md](markdown/stage_10_rag.md) |
+| Stage 6 | 完整 Decoder-only GPT | ✅ | [markdown/stage_6_decoder_only_gpt.md](markdown/stage_6_decoder_only_gpt.md) |
 
 历史阶段的训练、推理、配置和学习重点已迁移到上表对应的 Markdown 文件中。
 
-## 当前阶段
+## 最终实现范围
 
-当前阶段是 Stage 6：完整 Decoder-only GPT。
+Stage 6 的最终实现范围包括：
 
-Stage 6 在 Stage 5 Transformer Block 的基础上，实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。
-
-当前阶段不实现：
-
-- SFT
-- LoRA
-- RAG
-- BPE tokenizer
-- KV Cache
-- Flash Attention
-- 量化
-- 模型服务部署
-- `transformers`
-- `datasets`
-- `peft`
-- `accelerate`
-- `langchain`
-- `llama-index`
+- 多层 Transformer Block 堆叠。
+- final LayerNorm。
+- `lm_head`。
+- 字符级 next-token prediction 训练。
+- 文本生成。
+- attention 可视化。
+- 模型参数统计。
+- 最小 `temperature` 和 `top_k` 生成参数。
+- Mac MPS / CPU 小规模调试。
+- RTX 4090 24GB 较大配置训练。
 
 ## 部署环境
 
@@ -65,9 +55,9 @@ pip install -r requirements.txt
 
 目标设备：
 
-- MacBook / Apple Silicon，使用 `device: auto` 自动选择 MPS 或 CPU
-- RTX 4090 24GB，使用 `device: auto` 自动选择 CUDA
-- CPU 调试
+- MacBook / Apple Silicon，使用 `device: auto` 自动选择 MPS 或 CPU。
+- RTX 4090 24GB，使用 `device: auto` 自动选择 CUDA。
+- CPU 调试。
 
 ## 数据准备
 
@@ -87,7 +77,7 @@ data/computer_knowledge/raw/full_corpus.txt
 
 ## 最新训练和推理指令
 
-以下命令对应当前最新阶段 Stage 6：完整 Decoder-only GPT。
+以下命令对应最终阶段 Stage 6：完整 Decoder-only GPT。
 
 Mac 快速测试：
 
@@ -149,5 +139,5 @@ python -m mini_gpt.model_summary \
 ## 其他项目文档
 
 - [PROJECT_PLAN.md](PROJECT_PLAN.md)：项目路线图。
-- [STAGE_TASKS.md](STAGE_TASKS.md)：当前阶段任务边界。
+- [STAGE_TASKS.md](STAGE_TASKS.md)：Stage 6 完成说明和验收标准。
 - [AGENTS.md](AGENTS.md)：面向 Codex 的项目协作约束。

@@ -1,24 +1,25 @@
-# STAGE_TASKS.md
+# Stage 6 完整 Decoder-only GPT 完成说明
 
-# 当前阶段：Stage 6 完整 Decoder-only GPT
+当前项目已经完成到 Stage 6：完整 Decoder-only GPT。
 
-当前项目已经完成：
+本项目的目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。
 
-- Stage 1：字符级 Bigram 语言模型
-- Stage 2：Embedding 语言模型
-- Stage 3：Single-Head Causal Self-Attention
-- Stage 4：Multi-Head Causal Self-Attention
-- Stage 5：Transformer Block
+接下来后续学习可转至 minimind。
 
-现在进入 Stage 6：完整 Decoder-only GPT。
+## 已完成阶段
 
-本文件描述当前阶段的任务边界。后续实现代码时，必须优先遵守本文件。
+- Stage 1：字符级 Bigram 语言模型。
+- Stage 2：Embedding 语言模型。
+- Stage 3：Single-Head Causal Self-Attention。
+- Stage 4：Multi-Head Causal Self-Attention。
+- Stage 5：Transformer Block。
+- Stage 6：完整 Decoder-only GPT。
 
-## 本阶段核心目标
+## Stage 6 核心成果
 
-在 Stage 5 Transformer Block 的基础上，实现完整 Decoder-only GPT 主干模型，让学生理解多个 block 如何堆叠成 GPT。
+Stage 6 在 Stage 5 Transformer Block 的基础上，实现完整 Decoder-only GPT 主干模型，让学生理解多个 block 如何堆叠成 GPT。
 
-本阶段要学习：
+本阶段学习内容：
 
 1. GPT 主干由 token embedding、position embedding、多个 Transformer Block、final LayerNorm 和 `lm_head` 组成。
 2. 多层 Transformer Block 会逐层加工 hidden state。
@@ -72,7 +73,7 @@ next-token logits
 
 ## GPT 主干内部流程
 
-建议保持教学清晰的 decoder-only 结构：
+教学版 decoder-only 结构：
 
 ```text
 idx
@@ -87,7 +88,7 @@ x = final_layer_norm(x)
 logits = lm_head(x)
 ```
 
-每个 block 继续复用 Stage 5 的 Pre-LN Transformer Block。
+每个 block 复用 Stage 5 的 Pre-LN Transformer Block。
 
 ## 关键张量 Shape
 
@@ -127,11 +128,9 @@ single layer attention: [B, H, T, T]
 all layer attention:    L 个 [B, H, T, T]
 ```
 
-## 本阶段建议实现内容
+## Stage 6 文件
 
-后续进入 Stage 6 代码实现时，可以根据教学清晰度新增完整 GPT 相关文件。
-
-建议新增：
+完整 GPT 相关文件：
 
 - `mini_gpt/gpt.py`
 - `mini_gpt/train_gpt.py`
@@ -141,7 +140,7 @@ all layer attention:    L 个 [B, H, T, T]
 - `configs/gpt_mac.yaml`
 - `configs/gpt_4090.yaml`
 
-建议复用：
+复用模块：
 
 - `mini_gpt/tokenizer.py`
 - `mini_gpt/dataset.py`
@@ -149,24 +148,9 @@ all layer attention:    L 个 [B, H, T, T]
 - `mini_gpt/training.py`
 - `mini_gpt/transformer_block.py`
 
-无论新增还是修改，都必须保持 Stage 1、Stage 2、Stage 3、Stage 4、Stage 5 原有命令继续可用。
+## Stage 6 配置
 
-## 本阶段禁止实现
-
-Stage 6 只实现完整 Decoder-only GPT 主干模型，禁止提前实现：
-
-- SFT
-- LoRA
-- RAG
-- BPE tokenizer
-- KV Cache
-- Flash Attention
-- 复杂生成策略优化
-- `transformers` / `datasets` / `peft` / `accelerate` / `langchain` / `llama-index`
-
-## 本阶段配置要求
-
-Stage 6 准备两个配置：
+Stage 6 包含两个配置：
 
 ```text
 configs/
@@ -174,32 +158,32 @@ configs/
 └── gpt_4090.yaml
 ```
 
-Mac MPS 小规模调试配置建议：
+Mac MPS 小规模调试配置：
 
 - `block_size`: 64
 - `n_embd`: 128
 - `n_head`: 4
 - `n_layer`: 2
 - `dropout`: 0.1
-- `batch_size`: 16 或 32
-- `max_iters`: 1000 左右
+- `batch_size`: 32
+- `max_iters`: 1000
 - `weight_decay`: 0.01
 - `device`: auto
 
-RTX 4090 24GB 较大训练配置建议：
+RTX 4090 24GB 较大训练配置：
 
 - `block_size`: 256
 - `n_embd`: 256
 - `n_head`: 8
 - `n_layer`: 4
 - `dropout`: 0.1
-- `batch_size`: 32 或 64
-- `max_iters`: 20000 左右
+- `batch_size`: 64
+- `max_iters`: 20000
 - `learning_rate`: 0.0005
 - `weight_decay`: 0.01
 - `device`: auto
 
-## 本阶段计划验收命令
+## Stage 6 验收命令
 
 Mac 快速测试：
 
@@ -250,9 +234,9 @@ python -m mini_gpt.model_summary \
 
 ## 验收标准
 
-Stage 6 完成时应满足：
+Stage 6 完成时满足：
 
-1. 模型仍然能完成字符级 next-token prediction。
+1. 模型能完成字符级 next-token prediction。
 2. GPT 主干包含 token embedding、position embedding、多层 Transformer Block、final LayerNorm 和 `lm_head`。
 3. 每个 Transformer Block 复用 Stage 5 的核心结构。
 4. 每一层输入和输出 shape 都是 `[B, T, n_embd]`。
@@ -262,29 +246,3 @@ Stage 6 完成时应满足：
 8. 可视化接口能查看不同 layer、不同 head 的 attention weight。
 9. 模型参数统计能展示总参数量和主要模块参数量。
 10. 生成支持最小 `temperature` 和 `top_k` 参数。
-11. 代码没有实现 SFT、LoRA、RAG、BPE tokenizer、KV Cache 或 Flash Attention。
-
-## Stage 6 和 Stage 7 的衔接
-
-Stage 6 只解决完整 Decoder-only GPT 主干模型，并提供最小 `temperature` / `top_k` 生成参数。
-
-Stage 7 才进入生成策略优化，届时再引入：
-
-- top-p
-- greedy decoding
-- sampling 模式切换
-- repetition penalty
-
-Stage 6 不要提前实现 Stage 7 的内容。
-
-## 已完成阶段回顾
-
-Stage 1 已完成字符级 Bigram 语言模型，用于理解 token、vocab、logits、cross entropy 和 generation。
-
-Stage 2 已完成 Embedding 语言模型，用于理解 token embedding、position embedding、`lm_head`、next-token prediction，以及 Mac/4090 双设备配置。
-
-Stage 3 已完成 Single-Head Causal Self-Attention，用于理解单个 attention head 中的 Q、K、V、causal mask、softmax attention weight 和 `attention weight @ V`。
-
-Stage 4 已完成 Multi-Head Causal Self-Attention，用于理解多个 attention head 并行、concat 和 output projection。
-
-Stage 5 已完成 Transformer Block，用于理解 LayerNorm、Residual Connection、FeedForward 和 Pre-LN block 结构。

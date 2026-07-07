@@ -4,6 +4,8 @@
 
 已完成。
 
+本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
+
 ## 学习目标
 
 Stage 4 在 Stage 3 single-head causal self-attention 的基础上，扩展为多个 causal attention head 并行计算。
@@ -34,7 +36,7 @@ next-token logits
 4. 多个 head 的输出会 concat。
 5. output projection 把 concat 输出映射回 `n_embd`。
 6. 每个 head 都可以单独查看 attention weight。
-7. Stage 4 不实现 Transformer Block，Stage 5 才进入 Transformer Block。
+7. Stage 5 在此基础上进入 Transformer Block。
 
 ## 配置文件
 
@@ -108,7 +110,7 @@ outputs/attention/
 
 ## 本阶段边界
 
-Stage 4 不实现 Transformer Block、LayerNorm、FeedForward、Residual Connection、SFT、LoRA 或 RAG。
+Stage 4 聚焦 Multi-Head Causal Self-Attention，Transformer Block 和完整 GPT 主干留到后续已完成阶段逐步引入。
 
 ## 返回
 

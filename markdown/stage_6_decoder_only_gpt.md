@@ -2,7 +2,9 @@
 
 ## 状态
 
-当前进行中。
+已完成。
+
+本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
 
 ## 学习目标
 
@@ -119,11 +121,9 @@ python -m mini_gpt.model_summary \
   --config configs/gpt_mac.yaml
 ```
 
-## 本阶段边界
+## 最终实现范围
 
-Stage 6 不实现 SFT、LoRA、RAG、BPE tokenizer、KV Cache、Flash Attention、复杂生成策略优化或模型服务部署。
-
-Stage 7 才进入更完整的生成策略优化。
+Stage 6 是本项目的最终阶段，实现范围包括完整 Decoder-only GPT 主干、训练、生成、attention 可视化和模型参数统计。
 
 ## 返回
 

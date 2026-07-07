@@ -4,6 +4,8 @@
 
 已完成。
 
+本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
+
 ## 学习目标
 
 Stage 2 在 Bigram 的基础上，引入更接近 GPT 的输入结构：
@@ -62,7 +64,7 @@ python -m mini_gpt.generate_embedding_lm \
 
 ## 本阶段边界
 
-Stage 2 不实现 Self-Attention、Transformer、SFT、LoRA 或 RAG。
+Stage 2 聚焦 token embedding、position embedding 和 `lm_head`，Self-Attention 与 Transformer 留到后续已完成阶段逐步引入。
 
 ## 返回
 

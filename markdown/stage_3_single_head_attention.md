@@ -4,6 +4,8 @@
 
 已完成。
 
+本项目已经完成到 Stage 6：完整 Decoder-only GPT。项目目的旨在学习实现完整 Decoder-only GPT 主干，包括多层 Transformer Block 堆叠、final LayerNorm、`lm_head`、训练、生成、attention 可视化和模型参数统计。接下来后续学习可转至 minimind。
+
 ## 学习目标
 
 Stage 3 在 Stage 2 `EmbeddingLanguageModel` 的基础上加入单头 causal self-attention。
@@ -97,7 +99,7 @@ attention_weight shape: [batch_size, sequence_length, sequence_length]
 
 ## 本阶段边界
 
-Stage 3 不实现 Multi-Head Attention、Transformer Block、LayerNorm、FFN、SFT、LoRA 或 RAG。
+Stage 3 聚焦单头 causal self-attention，Multi-Head Attention、Transformer Block 和完整 GPT 主干留到后续已完成阶段逐步引入。
 
 ## 返回
 
